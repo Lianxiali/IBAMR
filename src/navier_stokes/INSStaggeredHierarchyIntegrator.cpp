@@ -1308,7 +1308,7 @@ INSStaggeredHierarchyIntegrator::integrateHierarchy(const double current_time,
             }
          }        
     }
-    pout << " Sizes of Ux and Uy = " << u0[0].size() << "  " << u0[1].size() << std::endl;
+    //pout << " Sizes of Ux and Uy = " << u0[0].size() << "  " << u0[1].size() << std::endl;
 
     // calcualte the norm of the velocity difference ||u1 - u0||
     double u_diff_norm = 0.0;
