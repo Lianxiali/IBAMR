@@ -1265,8 +1265,69 @@ INSStaggeredHierarchyIntegrator::integrateHierarchy(const double current_time,
     // Setup the solution and right-hand-side vectors.
     setupSolverVectors(d_sol_vec, d_rhs_vec, current_time, new_time, cycle_num);
 
+    // store the velocity of previous iteration
+    int ln = d_hierarchy->getFinestLevelNumber();
+    int v_idx = d_sol_vec->getComponentDescriptorIndex(0);
+    Pointer<PatchLevel<NDIM>> level = d_hierarchy->getPatchLevel(ln);
+
+    // store the old velocity in vector u0
+    std::vector<double> u0[NDIM];
+
+    for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+    {
+        Pointer<Patch<NDIM>> patch = level->getPatch(p());
+        Pointer<SideData<NDIM, double>> u_data = patch->getPatchData(v_idx);
+        
+        for (int axis = 0; axis < NDIM; ++axis)
+        {
+            for (SideIterator<NDIM> si(patch->getBox(), axis); si; si++)
+            {
+                const SideIndex<NDIM>& idx = si();
+                u0[axis].push_back((*u_data)(idx));
+            }
+         }        
+    }
+
     // Solve for u(n+1), p(n+1/2).
     d_stokes_solver->solveSystem(*d_sol_vec, *d_rhs_vec);
+
+    // store the velocity of the current iteration to vector u1
+    std::vector<double> u1[NDIM];
+    for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+    {
+        Pointer<Patch<NDIM>> patch = level->getPatch(p());
+        Pointer<SideData<NDIM, double>> u_data = patch->getPatchData(v_idx);
+        
+        for (int axis = 0; axis < NDIM; ++axis)
+        {
+            int N = 0;
+            for (SideIterator<NDIM> si(patch->getBox(), axis); si; si++)
+            {
+                const SideIndex<NDIM>& idx = si();
+                u1[axis].push_back((*u_data)(idx));                  
+            }
+         }        
+    }
+    pout << " Sizes of Ux and Uy = " << u0[0].size() << "  " << u0[1].size() << std::endl;
+
+    // calcualte the norm of the velocity difference ||u1 - u0||
+    double u_diff_norm = 0.0;
+    // Note: ux size is not equal to uy size, so loop u0[axis].size() times for each component
+    for (int axis = 0; axis < NDIM; ++axis)
+    {        
+        for (int i = 0; i< u0[axis].size(); i++)
+        {
+            const double x = (u0[axis].at(i) - u1[axis].at(i));
+            u_diff_norm += x * x;
+        }        
+    } 
+    u_diff_norm = std::sqrt(u_diff_norm);
+
+    pout << "current_time = " << current_time 
+         << " cycle_num = "   << cycle_num 
+         << " u_diff_norm = " << u_diff_norm
+         << std::endl;
+
     if (d_enable_logging && d_enable_logging_solver_iterations)
         plog << d_object_name
              << "::integrateHierarchy(): stokes solve number of iterations = " << d_stokes_solver->getNumIterations()
