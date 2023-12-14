@@ -1,2 +1,5 @@
+*.sublime-workspace
+.cache
+.clangd
 debug-fixedpoint-michael/
 debug-implicit-boyce/
